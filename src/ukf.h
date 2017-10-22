@@ -6,6 +6,8 @@
 #include <vector>
 #include <string>
 #include <fstream>
+#include <tuple>
+
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
@@ -63,9 +65,17 @@ public:
 
   ///* Augmented state dimension
   int n_aug_;
+  
+  ///* radar measurement dimension
+  int n_z_;
 
   ///* Sigma point spreading parameter
   double lambda_;
+  
+  Eigen::MatrixXd R_laser_;
+  Eigen::MatrixXd R_radar_;
+  Eigen::MatrixXd H_laser_;
+  Eigen::MatrixXd Hj_;
 
 
   /**
@@ -102,6 +112,35 @@ public:
    * @param meas_package The measurement at k+1
    */
   void UpdateRadar(MeasurementPackage meas_package);
+  
+private:
+    /**
+     * Initialize the state.
+     * @param meas_package First measurement
+     */
+    void _FirstMeasurement(const MeasurementPackage &meas_package);
+    /**
+     * Transform sigma points from predict space to measure space
+     */
+    MatrixXd _TransformSigmaPoints();
+    
+    // Prediction steps
+    MatrixXd _GeneratesSigmaPoints();
+    MatrixXd _AugmentedSigmaPoints();
+    void _SigmaPointPrediction(const MatrixXd& Xsig_aug, double delta_t);
+    void _PredictMeanAndCovariance();
+    
+    // Update steps
+    /**
+     * return mean and covariance of radar measurements
+     */
+    std::tuple<VectorXd, MatrixXd> _PredictRadarMeasurement();
+    
+    void _UpdateState(
+        const VectorXd& rader_measurement, 
+        const VectorXd& z_pred,
+        const MatrixXd& S
+    );
 };
 
 #endif /* UKF_H */
