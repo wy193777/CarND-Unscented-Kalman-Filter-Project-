@@ -125,7 +125,6 @@ private:
     MatrixXd _TransformSigmaPoints();
     
     // Prediction steps
-    MatrixXd _GeneratesSigmaPoints();
     MatrixXd _AugmentedSigmaPoints();
     void _SigmaPointPrediction(const MatrixXd& Xsig_aug, double delta_t);
     void _PredictMeanAndCovariance();

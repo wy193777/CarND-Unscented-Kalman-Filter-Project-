@@ -13,7 +13,7 @@ using std::vector;
  */
 UKF::UKF() {
     // if this is false, laser measurements will be ignored (except during init)
-    use_laser_ = false;
+    use_laser_ = true;
     // if this is false, radar measurements will be ignored (except during init)
     use_radar_ = true;
     // initial state vector
@@ -102,20 +102,6 @@ void UKF::_FirstMeasurement(const MeasurementPackage& meas_package) {
 }
 
 
-MatrixXd UKF::_GeneratesSigmaPoints() {
-    MatrixXd Xsig = MatrixXd(n_x_, 2 * n_x_ + 1);
-    MatrixXd A = P_.llt().matrixL();
-    //set first column of sigma point matrix
-    Xsig.col(0)  = x_;
-
-    //set remaining sigma points
-    for (int i = 0; i < n_x_; i++)
-    {
-        Xsig.col(i+1)     = x_ + sqrt(lambda_ + n_x_ ) * A.col(i);
-        Xsig.col(i+1+n_x_) = x_ - sqrt(lambda_ + n_x_ ) * A.col(i);
-    }
-    return Xsig;
-}
 
 MatrixXd UKF::_AugmentedSigmaPoints() {
     VectorXd x_aug = VectorXd(7);
@@ -198,7 +184,7 @@ void UKF::_SigmaPointPrediction(const MatrixXd& Xsig_aug, double delta_t) {
 
 void UKF::_PredictMeanAndCovariance() {
     //predicted state mean
-    //x_.fill(0.0);
+    x_.fill(0.0);
     for (int i = 0; i < 2 * n_aug_ + 1; i++) {  //iterate over sigma points
         x_ = x_+ weights_(i) * Xsig_pred_.col(i);
     }
