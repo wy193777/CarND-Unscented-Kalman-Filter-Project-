@@ -13,7 +13,7 @@ using std::vector;
  */
 UKF::UKF() {
     // if this is false, laser measurements will be ignored (except during init)
-    use_laser_ = true;
+    use_laser_ = false;
     // if this is false, radar measurements will be ignored (except during init)
     use_radar_ = true;
     // initial state vector
@@ -61,7 +61,7 @@ UKF::UKF() {
     R_laser_ = MatrixXd(2, 2);
     R_radar_ = MatrixXd(3, 3);
 
-    H_laser_ = MatrixXd(2, 4);
+    H_laser_ = MatrixXd(2, 5);
     Hj_ = MatrixXd(3, 4);
 
     //measurement covariance matrix - laser
@@ -73,9 +73,8 @@ UKF::UKF() {
                 0, 0.0009, 0,
                 0, 0, 0.09;
 
-        //section 10 in lesson 5
-    H_laser_ << 1, 0, 0, 0,
-                0, 1, 0, 0;
+    H_laser_ << 1, 0, 0, 0, 0,
+                0, 1, 0, 0, 0;
 }
 
 UKF::~UKF() {}
@@ -199,7 +198,7 @@ void UKF::_SigmaPointPrediction(const MatrixXd& Xsig_aug, double delta_t) {
 
 void UKF::_PredictMeanAndCovariance() {
     //predicted state mean
-    x_.fill(0.0);
+    //x_.fill(0.0);
     for (int i = 0; i < 2 * n_aug_ + 1; i++) {  //iterate over sigma points
         x_ = x_+ weights_(i) * Xsig_pred_.col(i);
     }
@@ -211,8 +210,7 @@ void UKF::_PredictMeanAndCovariance() {
         // state difference
         VectorXd x_diff = Xsig_pred_.col(i) - x_;
         //angle normalization
-        while (x_diff(3) > M_PI) x_diff(3) -= 2. * M_PI;
-        while (x_diff(3) < -M_PI) x_diff(3) += 2. * M_PI;
+        x_diff(3) = atan2(sin(x_diff(3)), cos(x_diff(3)));
 
         P_ = P_ + weights_(i) * x_diff * x_diff.transpose() ;
     }
@@ -264,8 +262,7 @@ std::tuple<VectorXd, MatrixXd> UKF::_PredictRadarMeasurement() {
         VectorXd z_diff = Zsig.col(i) - z_pred;
 
         //angle normalization
-        while (z_diff(1)> M_PI) z_diff(1)-=2.*M_PI;
-        while (z_diff(1)<-M_PI) z_diff(1)+=2.*M_PI;
+        z_diff(1) = atan2(sin(z_diff(1)), cos(z_diff(1)));
 
         S = S + weights_(i) * z_diff * z_diff.transpose();
     }
@@ -298,15 +295,13 @@ void UKF::_UpdateState(
 
         //residual
         VectorXd z_diff = Zsig.col(i) - z_pred;
-        //angle normalization
-        while (z_diff(1)> M_PI) z_diff(1)-=2.*M_PI;
-        while (z_diff(1)<-M_PI) z_diff(1)+=2.*M_PI;
+        //angle normalization        
+        z_diff(1) = atan2(sin(z_diff(1)), cos(z_diff(1)));
 
         // state difference
         VectorXd x_diff = Xsig_pred_.col(i) - x_;
-        //angle normalization
-        while (x_diff(3)> M_PI) x_diff(3)-=2.*M_PI;
-        while (x_diff(3)<-M_PI) x_diff(3)+=2.*M_PI;
+        //angle normalization        
+        x_diff(3) = atan2(sin(x_diff(3)), cos(x_diff(3)));
 
         Tc = Tc + weights_(i) * x_diff * z_diff.transpose();
     }
@@ -323,7 +318,7 @@ void UKF::_UpdateState(
 
     //update state mean and covariance matrix
     x_ = x_ + K * z_diff;
-    P_ = P_ - K*S*K.transpose();
+    P_ = P_ - K * S * K.transpose();
 }
 
 
@@ -332,12 +327,17 @@ void UKF::_UpdateState(
  * either radar or laser.
  */
 void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
-    // Initialize
+    if (meas_package.sensor_type_ == MeasurementPackage::RADAR && !use_radar_)
+        return;
+    if (meas_package.sensor_type_ == MeasurementPackage::LASER && !use_laser_)
+        return;
+    
     if (!is_initialized_) {
         _FirstMeasurement(meas_package);
         return;
     }
-    double delta_t = meas_package.timestamp_ - time_us_;
+    // delta_t should be microseconds
+    double delta_t = (meas_package.timestamp_ - time_us_) / 1000000.0 ;
     // Predict
     Prediction(delta_t);
     // Update
@@ -347,8 +347,9 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
     } else {
         UpdateLidar(meas_package);
     }
-    cout << "x_ = " << x_ << endl;
-    cout << "P_ = " << P_ << endl;
+    cout << "x_:\n" << x_ << endl;
+    cout << "P_:\n" << P_ << endl;
+    cout << "\n" << endl;
     time_us_ = meas_package.timestamp_;
 }
 
@@ -368,11 +369,9 @@ void UKF::Prediction(double delta_t) {
  * @param meas_package meas_package
  */
 void UKF::UpdateLidar(MeasurementPackage meas_package) {
-    VectorXd z = meas_package.raw_measurements_;
-    VectorXd z_pred = H_laser_ * x_;
-    VectorXd y = z - z_pred;
+    VectorXd y = meas_package.raw_measurements_ - H_laser_ * x_;
     MatrixXd Ht = H_laser_.transpose();
-    MatrixXd S = H_laser_ * P_ * Ht + R_radar_;
+    MatrixXd S = H_laser_ * P_ * Ht + R_laser_;
     MatrixXd Si = S.inverse();
     MatrixXd PHt = P_ * Ht;
     MatrixXd K = PHt * Si;

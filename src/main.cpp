@@ -67,15 +67,15 @@ int main()
     	  iss >> sensor_type;
 
     	  if (sensor_type.compare("L") == 0) {
-      	  		meas_package.sensor_type_ = MeasurementPackage::LASER;
-          		meas_package.raw_measurements_ = VectorXd(2);
-          		float px;
-      	  		float py;
-          		iss >> px;
-          		iss >> py;
-          		meas_package.raw_measurements_ << px, py;
-          		iss >> timestamp;
-          		meas_package.timestamp_ = timestamp;
+              meas_package.sensor_type_ = MeasurementPackage::LASER;
+              meas_package.raw_measurements_ = VectorXd(2);
+                float px;
+                float py;
+                iss >> px;
+                iss >> py;
+                meas_package.raw_measurements_ << px, py;
+                iss >> timestamp;
+                meas_package.timestamp_ = timestamp;
           } else if (sensor_type.compare("R") == 0) {
 
       	  		meas_package.sensor_type_ = MeasurementPackage::RADAR;
